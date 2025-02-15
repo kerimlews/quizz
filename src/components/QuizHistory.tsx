@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery } from 'react-query';
 import { fetchQuizResultsApi } from '../fakeApi';
 import useQuizStore from '../store';
@@ -14,26 +14,34 @@ const QuizHistory: React.FC = () => {
   const quizzes = useQuizStore((state) => state.quizzes);
   const [sortOption, setSortOption] = useState<SortOption>('date');
 
-  if (isLoading) return <div>Loading history...</div>;
+  const handleSortChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSortOption(e.target.value as SortOption);
+    },
+    []
+  );
 
-  let sortedResults: QuizResult[] = results || [];
-  if (sortOption === 'date') {
-    sortedResults = [...sortedResults].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  } else if (sortOption === 'score') {
-    sortedResults = [...sortedResults].sort((a, b) => b.score - a.score);
-  }
+  const sortedResults = useMemo(() => {
+    if (!results) return [];
+    let sorted = [...results];
+    if (sortOption === 'date') {
+      sorted.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+    } else if (sortOption === 'score') {
+      sorted.sort((a, b) => b.score - a.score);
+    }
+    return sorted;
+  }, [results, sortOption]);
+
+  if (isLoading) return <div>Loading history...</div>;
 
   return (
     <div>
       <h2>Quiz History</h2>
       <div style={{ marginBottom: '10px' }}>
         <label>Sort by: </label>
-        <select
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value as SortOption)}
-        >
+        <select value={sortOption} onChange={handleSortChange}>
           <option value="date">Date</option>
           <option value="score">Score</option>
         </select>
@@ -67,4 +75,4 @@ const QuizHistory: React.FC = () => {
   );
 };
 
-export default QuizHistory;
+export default React.memo(QuizHistory);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchQuizById, addQuizResultApi } from '../fakeApi';
 import ConfirmationModal from './ConfirmationModal';
@@ -22,32 +22,8 @@ const QuizSolver: React.FC = () => {
     }
   }, [id]);
 
-  useEffect(() => {
-    if (result !== null || !quiz) return;
-    if (timeLeft <= 0) {
-      finishQuiz();
-      return;
-    }
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft, quiz, result]);
-
-  if (!quiz) return <div>Loading quiz...</div>;
-
-  const currentQuestion = quiz.questions[currentQuestionIndex];
-
-  const handleAnswer = (index: number) => {
-    setUserAnswers([...userAnswers, index]);
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      setShowModal(true);
-    }
-  };
-
-  const finishQuiz = () => {
+  const finishQuiz = useCallback(() => {
+    if (!quiz) return;
     let correctCount = 0;
     quiz.questions.forEach((q: any, i: number) => {
       if (q.correctAnswerIndex === userAnswers[i]) {
@@ -64,7 +40,35 @@ const QuizSolver: React.FC = () => {
         date: new Date(),
       });
     }
-  };
+  }, [quiz, userAnswers, id]);
+
+  useEffect(() => {
+    if (result !== null || !quiz) return;
+    if (timeLeft <= 0) {
+      finishQuiz();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, quiz, result, finishQuiz]);
+
+  const handleAnswer = useCallback(
+    (index: number) => {
+      setUserAnswers((prev) => [...prev, index]);
+      if (currentQuestionIndex < quiz.questions.length - 1) {
+        setCurrentQuestionIndex((prev) => prev + 1);
+      } else {
+        setShowModal(true);
+      }
+    },
+    [currentQuestionIndex, quiz]
+  );
+
+  if (!quiz) return <div>Loading quiz...</div>;
+
+  const currentQuestion = quiz.questions[currentQuestionIndex];
 
   return (
     <div>
@@ -97,7 +101,7 @@ const QuizSolver: React.FC = () => {
           {result > 60 ? (
             <p>Congratulations, you have successfully finished the quiz!</p>
           ) : (
-            <p>Try again.</p>
+            <p>Please try again.</p>
           )}
         </div>
       )}
@@ -105,4 +109,4 @@ const QuizSolver: React.FC = () => {
   );
 };
 
-export default QuizSolver;
+export default React.memo(QuizSolver);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 interface ConfirmationModalProps {
   message: string;
@@ -31,19 +31,17 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   message,
   onConfirm,
   onCancel,
-}) => {
-  return (
-    <>
-      <div style={overlayStyle} onClick={onCancel} />
-      <div style={modalStyle}>
-        <p>{message}</p>
-        <button onClick={onConfirm} style={{ marginRight: '10px' }}>
-          Yes
-        </button>
-        <button onClick={onCancel}>No</button>
-      </div>
-    </>
-  );
-};
+}) => (
+  <>
+    <div style={overlayStyle} onClick={onCancel} />
+    <div style={modalStyle}>
+      <p>{message}</p>
+      <button onClick={onConfirm} style={{ marginRight: '10px' }}>
+        Yes
+      </button>
+      <button onClick={onCancel}>No</button>
+    </div>
+  </>
+);
 
-export default ConfirmationModal;
+export default memo(ConfirmationModal);
