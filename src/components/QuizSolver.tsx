@@ -5,7 +5,7 @@ import ConfirmationModal from './ConfirmationModal';
 import type { Quiz } from '../store';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 
-const QUIZ_DURATION_SECONDS = 5; // 2 minutes
+const QUIZ_DURATION_SECONDS = 120; // 2 minutes
 
 const QuizSolver: React.FC = () => {
   const { id } = useParams<{ id: string }>();
