@@ -2,45 +2,75 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchQuizById, addQuizResultApi } from '../fakeApi';
 import ConfirmationModal from './ConfirmationModal';
+import type { Quiz } from '../store';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 
-const QUIZ_DURATION_SECONDS = 120; // 2 minutes
+const QUIZ_DURATION_SECONDS = 5; // 2 minutes
 
 const QuizSolver: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [quiz, setQuiz] = useState<any>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [result, setResult] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION_SECONDS);
 
-  useEffect(() => {
-    if (id) {
-      fetchQuizById(id).then((data) => {
-        setQuiz(data);
-      });
+  const queryClient = useQueryClient();
+
+  const { data: quiz } = useQuery(
+    ['quiz', id],
+    () => fetchQuizById(id!),
+    { enabled: !!id }
+  );
+
+  const { mutate: submitQuizResult } = useMutation(
+    (newResult: { quizId: string; score: number; date: Date }) =>
+      addQuizResultApi(newResult),
+    {
+      onMutate: async (newResult) => {
+        await queryClient.cancelQueries(['quiz', id]);
+
+        const previousQuiz = queryClient.getQueryData<Quiz>(['quiz', id]);
+
+        queryClient.setQueryData(['quiz', id], (oldQuiz: any) => {
+          return {
+            ...oldQuiz,
+            result: newResult.score,
+          };
+        });
+
+        return { previousQuiz };
+      },
+      onError: (err, newResult, context) => {
+        if (context?.previousQuiz) {
+          queryClient.setQueryData(['quiz', id], context.previousQuiz);
+        }
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries(['quiz', id]);
+      },
     }
-  }, [id]);
+  );
 
   const finishQuiz = useCallback(() => {
     if (!quiz) return;
-    let correctCount = 0;
-    quiz.questions.forEach((q: any, i: number) => {
-      if (q.correctAnswerIndex === userAnswers[i]) {
-        correctCount++;
-      }
-    });
+
+    const correctCount = quiz.questions.reduce((count: number, q: any, i: number) => {
+      return count + (q.correctAnswerIndex === userAnswers[i] ? 1 : 0);
+    }, 0);
+
     const percentage = (correctCount / quiz.questions.length) * 100;
     setResult(percentage);
     setShowModal(false);
+
     if (id) {
-      addQuizResultApi({
+      submitQuizResult({
         quizId: id,
         score: percentage,
         date: new Date(),
       });
     }
-  }, [quiz, userAnswers, id]);
+  }, [quiz, userAnswers, id, submitQuizResult]);
 
   useEffect(() => {
     if (result !== null || !quiz) return;
@@ -57,7 +87,7 @@ const QuizSolver: React.FC = () => {
   const handleAnswer = useCallback(
     (index: number) => {
       setUserAnswers((prev) => [...prev, index]);
-      if (currentQuestionIndex < quiz.questions.length - 1) {
+      if (quiz && currentQuestionIndex < quiz.questions.length - 1) {
         setCurrentQuestionIndex((prev) => prev + 1);
       } else {
         setShowModal(true);

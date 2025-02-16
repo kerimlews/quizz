@@ -15,7 +15,25 @@ const QuizList: React.FC = () => {
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('default');
 
   const deleteMutation = useMutation(deleteQuizApi, {
-    onSuccess: () => queryClient.invalidateQueries('quizzes'),
+    onMutate: async (quizId) => {
+      await queryClient.cancelQueries('quizzes');
+
+      const previousQuizzes = queryClient.getQueryData<Quiz[]>('quizzes');
+
+      queryClient.setQueryData<Quiz[]>('quizzes', (old) =>
+        old ? old.filter((quiz) => quiz.id !== quizId) : []
+      );
+
+      return { previousQuizzes };
+    },
+    onError: (err, quizId, context) => {
+      if (context?.previousQuizzes) {
+        queryClient.setQueryData('quizzes', context.previousQuizzes);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries('quizzes');
+    },
   });
 
   const handleSortChange = useCallback(
